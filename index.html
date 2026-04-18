@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#f5f0e6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="PTO/ETO">
+  <title>PTO/ETO Calculator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:          #f5f0e6;
+      --surface:     #fbf7ef;
+      --ink:         #1a1614;
+      --muted:       #6b635a;
+      --rule:        #d9d0c2;
+      --accent:      #c94a1a;
+      --accent-soft: #f0e4d6;
+      --danger:      #8b1e1e;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      padding: 24px 16px calc(80px + env(safe-area-inset-bottom));
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      background-image:
+        repeating-linear-gradient(0deg, transparent 0, transparent 27px, rgba(26,22,20,0.025) 27px, rgba(26,22,20,0.025) 28px);
+    }
+
+    .container { max-width: 520px; margin: 0 auto; }
+
+    /* Header ----------------------------------------------- */
+    header {
+      border-bottom: 2px solid var(--ink);
+      padding-bottom: 16px;
+      margin-bottom: 28px;
+      position: relative;
+    }
+
+    header::before {
+      content: 'FORM · PTO-01';
+      position: absolute;
+      top: 4px;
+      right: 0;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      color: var(--muted);
+    }
+
+    h1 {
+      font-family: 'IBM Plex Sans Condensed', sans-serif;
+      font-size: 34px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+    h1 .accent { color: var(--accent); }
+
+    .sub {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-top: 8px;
+    }
+
+    /* Shared ------------------------------------------------ */
+    section { margin-bottom: 28px; }
+
+    .label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      font-family: 'IBM Plex Sans Condensed', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    h2::before {
+      content: '';
+      width: 18px;
+      height: 2px;
+      background: var(--accent);
+      display: inline-block;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+    }
+
+    .text-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 6px 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .text-btn:hover { color: var(--accent); }
+
+    /* Shift chips ------------------------------------------ */
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .chip {
+      flex: 1 1 auto;
+      min-height: 48px;
+      padding: 12px 14px;
+      background: var(--surface);
+      border: 2px solid var(--ink);
+      font-family: 'IBM Plex Sans Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--ink);
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
+    }
+
+    .chip:hover { background: var(--accent-soft); }
+    .chip:active { transform: translateY(1px); }
+    .chip.active { background: var(--ink); color: var(--bg); }
+
+    .chip.add {
+      flex: 0 0 auto;
+      border-style: dashed;
+      color: var(--muted);
+      font-size: 18px;
+      padding: 12px 18px;
+    }
+
+    /* Shift info (read-only) ------------------------------- */
+    .shift-info {
+      background: var(--surface);
+      border: 1px solid var(--rule);
+      padding: 14px 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 16px;
+    }
+
+    .shift-info > .full { grid-column: span 2; }
+
+    .shift-info .k {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .shift-info .v {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--ink);
+    }
+
+    /* Shift editor ----------------------------------------- */
+    .editor {
+      background: var(--surface);
+      border: 2px solid var(--ink);
+      padding: 16px;
+      position: relative;
+    }
+
+    .editor::before {
+      content: 'EDITING';
+      position: absolute;
+      top: -9px;
+      left: 14px;
+      background: var(--bg);
+      padding: 0 8px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+    }
+
+    .field { display: flex; flex-direction: column; margin-bottom: 12px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    input[type="time"], input[type="text"] {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 17px;
+      font-weight: 500;
+      padding: 12px 10px;
+      border: 2px solid var(--ink);
+      background: var(--bg);
+      color: var(--ink);
+      width: 100%;
+      min-height: 48px;
+      -webkit-appearance: none;
+      appearance: none;
+      border-radius: 0;
+    }
+
+    input[type="text"] {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 600;
+    }
+
+    input:focus {
+      outline: none;
+      background: var(--accent-soft);
+    }
+
+    .lunch-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 44px;
+      gap: 8px;
+      margin-bottom: 8px;
+      align-items: end;
+    }
+
+    .remove-btn {
+      width: 44px;
+      height: 48px;
+      border: 2px solid var(--ink);
+      background: var(--bg);
+      font-size: 20px;
+      cursor: pointer;
+      font-family: 'IBM Plex Mono', monospace;
+      line-height: 1;
+      transition: background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      padding: 0;
+    }
+
+    .remove-btn:hover { background: var(--accent); color: var(--bg); }
+
+    .add-btn {
+      width: 100%;
+      padding: 12px;
+      border: 2px dashed var(--ink);
+      background: transparent;
+      font-family: 'IBM Plex Sans Condensed', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      margin-top: 4px;
+      color: var(--ink);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .add-btn:hover { background: var(--accent-soft); }
+
+    .editor-actions {
+      display: grid;
+      grid-template-columns: auto 1fr 1fr;
+      gap: 8px;
+      margin-top: 16px;
+      border-top: 1px solid var(--rule);
+      padding-top: 14px;
+    }
+
+    .btn {
+      padding: 12px 14px;
+      font-family: 'IBM Plex Sans Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: 2px solid var(--ink);
+      -webkit-tap-highlight-color: transparent;
+      min-height: 44px;
+    }
+
+    .btn-primary { background: var(--ink); color: var(--bg); }
+    .btn-primary:hover { background: var(--accent); border-color: var(--accent); }
+    .btn-secondary { background: transparent; color: var(--ink); }
+    .btn-secondary:hover { background: var(--accent-soft); }
+    .btn-danger {
+      background: transparent;
+      color: var(--danger);
+      border-color: var(--danger);
+      padding: 12px;
+    }
+    .btn-danger:hover { background: var(--danger); color: var(--bg); }
+    .btn-danger:disabled { opacity: 0.3; cursor: not-allowed; }
+    .btn-danger:disabled:hover { background: transparent; color: var(--danger); }
+
+    /* Absence rows ----------------------------------------- */
+    .absence-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 44px;
+      gap: 8px;
+      margin-bottom: 10px;
+      align-items: end;
+    }
+
+    /* Calculate button ------------------------------------- */
+    .calc-btn {
+      width: 100%;
+      padding: 20px;
+      background: var(--ink);
+      color: var(--bg);
+      border: none;
+      font-family: 'IBM Plex Sans Condensed', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .calc-btn:hover { background: var(--accent); }
+    .calc-btn:active { transform: translateY(1px); }
+    .calc-btn::after { content: '  →'; }
+
+    .error {
+      color: var(--accent);
+      font-size: 13px;
+      margin-top: 10px;
+      font-family: 'IBM Plex Mono', monospace;
+      min-height: 18px;
+    }
+
+    /* Result card ------------------------------------------ */
+    .result {
+      margin-top: 32px;
+      border: 2px solid var(--ink);
+      background: var(--surface);
+      padding: 28px 22px 22px;
+      position: relative;
+    }
+
+    .result::before {
+      content: 'TOTAL PTO/ETO REQUIRED';
+      position: absolute;
+      top: -9px;
+      left: 18px;
+      background: var(--bg);
+      padding: 0 8px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+    }
+
+    .total { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
+
+    .num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 64px;
+      font-weight: 600;
+      color: var(--accent);
+      line-height: 0.9;
+      letter-spacing: -0.02em;
+    }
+
+    .unit {
+      font-family: 'IBM Plex Sans Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+
+    .breakdown {
+      list-style: none;
+      border-top: 1px solid var(--rule);
+      padding-top: 12px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+    }
+
+    .breakdown li {
+      display: grid;
+      grid-template-columns: 24px 1fr auto;
+      gap: 10px;
+      padding: 5px 0;
+      color: var(--muted);
+      align-items: baseline;
+    }
+
+    .breakdown .idx { color: var(--accent); font-weight: 600; }
+    .breakdown .eto { color: var(--ink); font-weight: 600; }
+
+    .hidden { display: none !important; }
+
+    /* Chart toggle ----------------------------------------- */
+    .chart-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px 0;
+      margin-top: 20px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .chart-toggle:hover { color: var(--accent); }
+
+    .chart {
+      display: none;
+      margin-top: 8px;
+      border: 1px solid var(--rule);
+      padding: 14px 16px;
+      background: var(--surface);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+    }
+    .chart.open { display: block; }
+    .chart-title {
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .chart table { width: 100%; border-collapse: collapse; }
+    .chart td { padding: 3px 0; }
+    .chart td:last-child { text-align: right; color: var(--accent); font-weight: 600; }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    footer .dot { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header>
+      <h1>PTO<span class="accent">/</span>ETO</h1>
+      <p class="sub">6-minute clocking increments</p>
+    </header>
+
+    <section>
+      <div class="section-head">
+        <span class="label">Shift</span>
+        <button class="text-btn" id="edit-toggle">✎ Edit</button>
+      </div>
+      <div class="chips" id="shift-chips"></div>
+      <div id="shift-display"></div>
+    </section>
+
+    <section>
+      <h2>Time Away</h2>
+      <div id="absence-list"></div>
+      <button class="add-btn" id="add-absence">＋ Add another</button>
+    </section>
+
+    <button class="calc-btn" id="calculate">Calculate PTO/ETO</button>
+    <div class="error" id="error"></div>
+
+    <section class="result hidden" id="result">
+      <div class="total">
+        <span class="num" id="total-eto">0.0</span>
+        <span class="unit">Hours</span>
+      </div>
+      <ul class="breakdown" id="breakdown"></ul>
+    </section>
+
+    <button class="chart-toggle" id="chart-toggle">▸ View chart</button>
+    <div class="chart" id="chart">
+      <div class="chart-title">Clocking Time</div>
+      <table>
+        <tr><td>1 – 6 min</td><td>0.1</td></tr>
+        <tr><td>7 – 12 min</td><td>0.2</td></tr>
+        <tr><td>13 – 18 min</td><td>0.3</td></tr>
+        <tr><td>19 – 24 min</td><td>0.4</td></tr>
+        <tr><td>25 – 30 min</td><td>0.5</td></tr>
+        <tr><td>31 – 36 min</td><td>0.6</td></tr>
+        <tr><td>37 – 42 min</td><td>0.7</td></tr>
+        <tr><td>43 – 48 min</td><td>0.8</td></tr>
+        <tr><td>49 – 54 min</td><td>0.9</td></tr>
+        <tr><td>55 – 60 min</td><td>1.0</td></tr>
+      </table>
+    </div>
+
+    <footer>
+      Saved on this device <span class="dot">·</span> Add to home screen
+    </footer>
+
+  </div>
+
+  <script>
+    // ============================================================
+    // Defaults (used only the very first time the page is opened)
+    // ============================================================
+    const DEFAULT_SHIFTS = [
+      { name: '1st',  start: '06:00', end: '14:30', lunches: [['10:00', '10:30']] },
+      { name: '2nd',  start: '14:20', end: '22:50', lunches: [['18:20', '18:50']] },
+      { name: '3rd',  start: '22:40', end: '07:10', lunches: [['02:40', '03:10']] },
+    ];
+
+    const ROUND_EACH_ABSENCE = true;
+    const STORAGE_KEY = 'ptoEtoData_v1';
+
+    // ============================================================
+    // State + persistence
+    // ============================================================
+    function uid() { return 'shift_' + Math.random().toString(36).slice(2, 10); }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.shifts) && parsed.shifts.length) return parsed;
+        }
+      } catch (_) {}
+      const shifts = DEFAULT_SHIFTS.map(s => ({ id: uid(), ...s }));
+      return { shifts, activeShiftId: shifts[0].id };
+    }
+
+    function saveState() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {}
+    }
+
+    const state = loadState();
+    let editingShiftId = null;
+
+    function getActiveShift() {
+      return state.shifts.find(s => s.id === state.activeShiftId) || state.shifts[0];
+    }
+
+    // ============================================================
+    // Calculation (pure)
+    // ============================================================
+    const DAY = 1440;
+
+    function toMinutes(hhmm) {
+      const [h, m] = hhmm.split(':').map(Number);
+      return h * 60 + m;
+    }
+
+    function formatTime(mins) {
+      mins = ((mins % DAY) + DAY) % DAY;
+      const h24 = Math.floor(mins / 60);
+      const m   = mins % 60;
+      const period = h24 >= 12 ? 'PM' : 'AM';
+      const h12 = (h24 % 12) || 12;
+      return `${h12}:${m.toString().padStart(2, '0')} ${period}`;
+    }
+
+    function minutesToETO(minutes) {
+      if (minutes <= 0) return 0.0;
+      const blocks = Math.ceil(minutes / 6);
+      return Math.round(blocks * 0.1 * 10) / 10;
+    }
+
+    function overlapMinutes(aStart, aEnd, bStart, bEnd) {
+      return Math.max(0, Math.min(aEnd, bEnd) - Math.max(aStart, bStart));
+    }
+
+    function getShiftWindow(shift) {
+      let shiftStart = toMinutes(shift.start);
+      let shiftEnd   = toMinutes(shift.end);
+      if (shiftEnd <= shiftStart) shiftEnd += DAY;
+      const lunches = (shift.lunches || []).map(([ls, le]) => {
+        let a = toMinutes(ls);
+        let b = toMinutes(le);
+        if (a < shiftStart) { a += DAY; b += DAY; }
+        return [a, b];
+      });
+      return { shiftStart, shiftEnd, lunches };
+    }
+
+    function mapAbsenceTime(hhmm, shiftStart, shiftEnd) {
+      let t = toMinutes(hhmm);
+      if (shiftEnd > DAY && t < shiftStart) t += DAY;
+      return t;
+    }
+
+    function workingMinutesAway(aStart, aEnd, shiftStart, shiftEnd, lunches) {
+      const inShift = overlapMinutes(aStart, aEnd, shiftStart, shiftEnd);
+      if (inShift === 0) return 0;
+      const cs = Math.max(aStart, shiftStart);
+      const ce = Math.min(aEnd,   shiftEnd);
+      let lunch = 0;
+      for (const [ls, le] of lunches) lunch += overlapMinutes(cs, ce, ls, le);
+      return Math.max(0, inShift - lunch);
+    }
+
+    function calculate(shift, absences) {
+      const { shiftStart, shiftEnd, lunches } = getShiftWindow(shift);
+      const results = [];
+      let totalAway = 0;
+      for (const { start, end } of absences) {
+        let aStart = mapAbsenceTime(start, shiftStart, shiftEnd);
+        let aEnd   = mapAbsenceTime(end,   shiftStart, shiftEnd);
+        if (aEnd <= aStart) aEnd += DAY;
+        const away = workingMinutesAway(aStart, aEnd, shiftStart, shiftEnd, lunches);
+        totalAway += away;
+        results.push({ aStart, aEnd, away, eto: minutesToETO(away) });
+      }
+      const totalEto = ROUND_EACH_ABSENCE
+        ? Math.round(results.reduce((s, r) => s + r.eto, 0) * 10) / 10
+        : minutesToETO(totalAway);
+      return { results, totalAway, totalEto };
+    }
+
+    // ============================================================
+    // Rendering
+    // ============================================================
+    const $ = id => document.getElementById(id);
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+      }[c]));
+    }
+
+    function renderChips() {
+      const chips = $('shift-chips');
+      chips.innerHTML = '';
+      state.shifts.forEach(s => {
+        const b = document.createElement('button');
+        b.className = 'chip' + (s.id === state.activeShiftId ? ' active' : '');
+        b.textContent = s.name;
+        b.addEventListener('click', () => {
+          state.activeShiftId = s.id;
+          editingShiftId = null;
+          saveState();
+          render();
+        });
+        chips.appendChild(b);
+      });
+
+      const add = document.createElement('button');
+      add.className = 'chip add';
+      add.textContent = '+';
+      add.setAttribute('aria-label', 'Add shift');
+      add.addEventListener('click', () => {
+        const newShift = {
+          id: uid(),
+          name: 'New Shift',
+          start: '08:00',
+          end: '16:30',
+          lunches: [['12:00', '12:30']],
+        };
+        state.shifts.push(newShift);
+        state.activeShiftId = newShift.id;
+        editingShiftId = newShift.id;
+        saveState();
+        render();
+      });
+      chips.appendChild(add);
+    }
+
+    function renderShiftDisplay() {
+      const host = $('shift-display');
+      host.innerHTML = '';
+      const shift = getActiveShift();
+      host.appendChild(editingShiftId === shift.id ? buildEditor(shift) : buildInfo(shift));
+    }
+
+    function buildInfo(shift) {
+      const { shiftStart, shiftEnd, lunches } = getShiftWindow(shift);
+      const total   = (shiftEnd - shiftStart) / 60;
+      const lunchHr = lunches.reduce((s, [a, b]) => s + (b - a), 0) / 60;
+
+      const el = document.createElement('div');
+      el.className = 'shift-info';
+      el.innerHTML = `
+        <div><span class="k">Start</span><span class="v">${formatTime(shiftStart)}</span></div>
+        <div><span class="k">End</span><span class="v">${formatTime(shiftEnd)}</span></div>
+        <div class="full"><span class="k">Lunch (unpaid)</span><span class="v">${
+          lunches.length
+            ? lunches.map(([a, b]) => `${formatTime(a)} – ${formatTime(b)}`).join(', ')
+            : 'none'
+        }</span></div>
+        <div class="full"><span class="k">Paid work</span><span class="v">${(total - lunchHr).toFixed(2)} hrs</span></div>
+      `;
+      return el;
+    }
+
+    function buildEditor(shift) {
+      const draft = JSON.parse(JSON.stringify(shift));
+
+      const el = document.createElement('div');
+      el.className = 'editor';
+
+      el.innerHTML = `
+        <div class="field">
+          <span class="label">Shift Name</span>
+          <input type="text" id="ed-name" value="${escapeHtml(draft.name)}" maxlength="30">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <span class="label">Start</span>
+            <input type="time" id="ed-start" value="${draft.start}" step="60">
+          </div>
+          <div class="field">
+            <span class="label">End</span>
+            <input type="time" id="ed-end" value="${draft.end}" step="60">
+          </div>
+        </div>
+        <span class="label">Lunch / Unpaid Breaks</span>
+        <div id="ed-lunches"></div>
+      `;
+
+      const lunchList = el.querySelector('#ed-lunches');
+
+      function renderLunches() {
+        lunchList.innerHTML = '';
+        draft.lunches.forEach((pair, i) => {
+          const row = document.createElement('div');
+          row.className = 'lunch-row';
+          row.innerHTML = `
+            <input type="time" class="lunch-start" value="${pair[0]}" step="60">
+            <input type="time" class="lunch-end"   value="${pair[1]}" step="60">
+            <button class="remove-btn" aria-label="Remove break">×</button>
+          `;
+          row.querySelector('.lunch-start').addEventListener('input', e => pair[0] = e.target.value);
+          row.querySelector('.lunch-end').addEventListener('input',   e => pair[1] = e.target.value);
+          row.querySelector('.remove-btn').addEventListener('click', () => {
+            draft.lunches.splice(i, 1);
+            renderLunches();
+          });
+          lunchList.appendChild(row);
+        });
+      }
+      renderLunches();
+
+      const addLunch = document.createElement('button');
+      addLunch.className = 'add-btn';
+      addLunch.textContent = '＋ Add break';
+      addLunch.addEventListener('click', () => {
+        draft.lunches.push(['12:00', '12:30']);
+        renderLunches();
+      });
+      el.appendChild(addLunch);
+
+      const actions = document.createElement('div');
+      actions.className = 'editor-actions';
+      const onlyOne = state.shifts.length <= 1;
+      actions.innerHTML = `
+        <button class="btn btn-danger" id="ed-delete" ${onlyOne ? 'disabled' : ''}
+                title="${onlyOne ? 'Cannot delete the only shift' : 'Delete this shift'}">🗑</button>
+        <button class="btn btn-secondary" id="ed-cancel">Cancel</button>
+        <button class="btn btn-primary"   id="ed-save">Save</button>
+      `;
+      el.appendChild(actions);
+
+      actions.querySelector('#ed-cancel').addEventListener('click', () => {
+        // If this was a brand-new, untouched shift, discard it on cancel
+        const original = state.shifts.find(s => s.id === shift.id);
+        if (original && original.name === 'New Shift' &&
+            original.start === '08:00' && original.end === '16:30' &&
+            state.shifts.length > 1) {
+          const idx = state.shifts.findIndex(s => s.id === shift.id);
+          state.shifts.splice(idx, 1);
+          state.activeShiftId = state.shifts[0].id;
+          saveState();
+        }
+        editingShiftId = null;
+        render();
+      });
+
+      actions.querySelector('#ed-save').addEventListener('click', () => {
+        const name  = el.querySelector('#ed-name').value.trim();
+        const start = el.querySelector('#ed-start').value;
+        const end   = el.querySelector('#ed-end').value;
+        if (!name)              { alert('Please enter a shift name.'); return; }
+        if (!start || !end)     { alert('Please set both start and end times.'); return; }
+        if (start === end)      { alert('Start and end cannot be identical.'); return; }
+        for (const [ls, le] of draft.lunches) {
+          if (!ls || !le) { alert('Please set both times for every break, or remove the empty row.'); return; }
+          if (ls === le)  { alert('A break start and end cannot be identical.'); return; }
+        }
+        const target = state.shifts.find(s => s.id === shift.id);
+        target.name    = name;
+        target.start   = start;
+        target.end     = end;
+        target.lunches = draft.lunches.slice();
+        editingShiftId = null;
+        saveState();
+        render();
+      });
+
+      actions.querySelector('#ed-delete').addEventListener('click', () => {
+        if (state.shifts.length <= 1) return;
+        if (!confirm(`Delete shift "${shift.name}"? This cannot be undone.`)) return;
+        const idx = state.shifts.findIndex(s => s.id === shift.id);
+        state.shifts.splice(idx, 1);
+        state.activeShiftId = state.shifts[0].id;
+        editingShiftId = null;
+        saveState();
+        render();
+      });
+
+      return el;
+    }
+
+    function addAbsenceRow() {
+      const list = $('absence-list');
+      const row = document.createElement('div');
+      row.className = 'absence-row';
+      row.innerHTML = `
+        <div class="field">
+          <span class="label">From</span>
+          <input type="time" class="start" step="60">
+        </div>
+        <div class="field">
+          <span class="label">To</span>
+          <input type="time" class="end" step="60">
+        </div>
+        <button class="remove-btn" aria-label="Remove absence">×</button>
+      `;
+      row.querySelector('.remove-btn').addEventListener('click', () => {
+        row.remove();
+        if (list.children.length === 0) addAbsenceRow();
+      });
+      list.appendChild(row);
+    }
+
+    function calculateAndDisplay() {
+      const rows = document.querySelectorAll('.absence-row');
+      const absences = [];
+      for (const row of rows) {
+        const s = row.querySelector('.start').value;
+        const e = row.querySelector('.end').value;
+        if (!s || !e) continue;
+        absences.push({ start: s, end: e });
+      }
+      const resultEl = $('result');
+      const errorEl  = $('error');
+      errorEl.textContent = '';
+
+      if (absences.length === 0) {
+        errorEl.textContent = '⚠ Fill in at least one From/To pair.';
+        resultEl.classList.add('hidden');
+        return;
+      }
+
+      const { results, totalEto } = calculate(getActiveShift(), absences);
+      $('total-eto').textContent = totalEto.toFixed(1);
+
+      const breakdown = $('breakdown');
+      breakdown.innerHTML = '';
+      results.forEach((r, i) => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <span class="idx">#${i + 1}</span>
+          <span>${formatTime(r.aStart)} – ${formatTime(r.aEnd)} · ${r.away} min</span>
+          <span class="eto">${r.eto.toFixed(1)} h</span>
+        `;
+        breakdown.appendChild(li);
+      });
+
+      resultEl.classList.remove('hidden');
+      requestAnimationFrame(() =>
+        resultEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      );
+    }
+
+    function render() {
+      renderChips();
+      renderShiftDisplay();
+      $('edit-toggle').textContent = editingShiftId ? '✕ Close' : '✎ Edit';
+    }
+
+    // ============================================================
+    // Wire up
+    // ============================================================
+    $('edit-toggle').addEventListener('click', () => {
+      editingShiftId = editingShiftId ? null : getActiveShift().id;
+      render();
+    });
+
+    $('add-absence').addEventListener('click', addAbsenceRow);
+    $('calculate').addEventListener('click', calculateAndDisplay);
+
+    $('chart-toggle').addEventListener('click', e => {
+      const chart = $('chart');
+      const open = chart.classList.toggle('open');
+      e.currentTarget.textContent = open ? '▾ Hide chart' : '▸ View chart';
+    });
+
+    render();
+    addAbsenceRow();
+  </script>
+</body>
+</html>
