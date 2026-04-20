@@ -6,7 +6,7 @@
 // force users' browsers to fetch the new version on their next visit.
 // ============================================================
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME    = `pto-eto-${CACHE_VERSION}`;
 
 // Core app files to pre-cache on install. Use relative paths so this
