@@ -473,6 +473,72 @@
     .chart td { padding: 3px 0; }
     .chart td:last-child { text-align: right; color: var(--accent); font-weight: 600; }
 
+    /* Install prompt --------------------------------------- */
+    .install-prompt {
+      margin-top: 32px;
+      padding: 16px;
+      border: 2px solid var(--ink);
+      background: var(--surface);
+      display: none;   /* JS shows this when appropriate */
+    }
+    .install-prompt.visible { display: block; }
+
+    .install-prompt h3 {
+      font-family: 'IBM Plex Sans Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .install-prompt p {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    .install-prompt .ios-steps {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      background: var(--bg);
+      border: 1px solid var(--rule);
+      padding: 10px 12px;
+      margin-top: 8px;
+    }
+    .install-prompt .ios-steps strong { color: var(--accent); }
+
+    .install-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      color: var(--bg);
+      border: 2px solid var(--accent);
+      font-family: 'IBM Plex Sans Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .install-btn:hover { background: var(--ink); border-color: var(--ink); }
+    .install-btn:active { transform: translateY(1px); }
+
+    .install-dismiss {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 8px 0 0;
+      margin-top: 8px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .install-dismiss:hover { color: var(--accent); }
+
     footer {
       text-align: center;
       margin-top: 40px;
@@ -536,8 +602,23 @@
       </table>
     </div>
 
+    <section class="install-prompt" id="install-prompt">
+      <h3 id="install-heading">Install App</h3>
+      <p id="install-body">
+        Add this calculator to your home screen for one-tap access and offline use.
+      </p>
+      <button class="install-btn" id="install-btn">＋ Add to Home Screen</button>
+      <div class="ios-steps" id="ios-steps" style="display:none;">
+        <strong>1.</strong> Tap the <strong>Share</strong> button
+        (<span style="font-family:sans-serif;">⎘</span>) at the bottom of Safari.<br>
+        <strong>2.</strong> Scroll down and tap <strong>"Add to Home Screen"</strong>.<br>
+        <strong>3.</strong> Tap <strong>"Add"</strong> in the top-right.
+      </div>
+      <button class="install-dismiss" id="install-dismiss">Not now</button>
+    </section>
+
     <footer>
-      Saved on this device <span class="dot">·</span> Add to home screen
+      Saved on this device
     </footer>
 
   </div>
@@ -939,6 +1020,79 @@
 
     render();
     addAbsenceRow();
+
+    // ============================================================
+    // Install prompt — show the right UX for each platform
+    // ============================================================
+    (function setupInstallPrompt() {
+      const prompt     = document.getElementById('install-prompt');
+      const heading    = document.getElementById('install-heading');
+      const body       = document.getElementById('install-body');
+      const btn        = document.getElementById('install-btn');
+      const iosSteps   = document.getElementById('ios-steps');
+      const dismiss    = document.getElementById('install-dismiss');
+
+      // Detect platform / mode
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                           window.navigator.standalone === true;
+      const ua = window.navigator.userAgent;
+      const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+      const isSafari = isIOS && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+
+      // If already installed, don't show anything
+      if (isStandalone) return;
+
+      // Respect the user dismissing the prompt
+      const DISMISS_KEY = 'ptoEtoInstallDismissed';
+      const dismissedAt = Number(localStorage.getItem(DISMISS_KEY) || 0);
+      const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+      if (dismissedAt && Date.now() - dismissedAt < WEEK_MS) return;
+
+      dismiss.addEventListener('click', () => {
+        try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch (_) {}
+        prompt.classList.remove('visible');
+      });
+
+      // --- iOS Safari: no programmatic install, show instructions
+      if (isIOS) {
+        if (!isSafari) {
+          heading.textContent = 'Open in Safari to Install';
+          body.textContent = 'On iPhone, only Safari can add apps to the home screen. Open this page in Safari, then come back here.';
+          btn.style.display = 'none';
+        } else {
+          heading.textContent = 'Install on iPhone';
+          body.textContent = 'Add this calculator to your home screen:';
+          btn.style.display = 'none';
+          iosSteps.style.display = 'block';
+        }
+        prompt.classList.add('visible');
+        return;
+      }
+
+      // --- Android / Desktop Chrome / Edge: real install prompt
+      let deferredPrompt = null;
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();         // stop the browser's auto-banner
+        deferredPrompt = e;
+        prompt.classList.add('visible');
+      });
+
+      btn.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        if (outcome === 'accepted') {
+          prompt.classList.remove('visible');
+        }
+      });
+
+      // Fired after the user accepts the install prompt
+      window.addEventListener('appinstalled', () => {
+        prompt.classList.remove('visible');
+      });
+    })();
 
     // ============================================================
     // PWA: register the service worker for offline support
